@@ -1,10 +1,12 @@
 /* =========================================================================
    SafeWalk — script.js
-   Map initialization, data layers, complaint reporting, dashboard.
+   Map initialization and the 10 real OpenStreetMap data layers for the
+   Western Province. No complaint/hazard-report system in this build —
+   that gets added later once public report data actually exists.
    ========================================================================= */
 
 /* -------------------------------------------------------------------------
-   0. CONSTANTS
+   0. DATA FILE PATHS
    ------------------------------------------------------------------------- */
 const DATA = {
   boundary: 'data/western_province.geojson',
@@ -20,24 +22,8 @@ const DATA = {
   crossings: 'data/pedestrian_crossings.geojson'
 };
 
-const ISSUE_LABELS = {
-  sidewalk: 'Damaged sidewalk',
-  crossing: 'Unsafe road crossing',
-  lighting: 'Poor street lighting',
-  parking: 'Illegal parking on walkway',
-  drain: 'Open drain',
-  construction: 'Construction obstruction',
-  flooding: 'Flooded pathway',
-  accessibility: 'Accessibility barrier'
-};
-
-const SEVERITY_COLOR = { low: '#4C8C6B', medium: '#E8A33D', high: '#D64545' };
-
 // Western Province approximate bounds (fallback before boundary loads)
-const WP_BOUNDS = L.latLngBounds([6.30, 79.78], [7.36, 80.40]);
 const WP_CENTER = [6.86, 80.04];
-
-const LS_KEY = 'safewalk_complaints_v1';
 
 /* -------------------------------------------------------------------------
    1. MAP INIT + BASE LAYERS
@@ -105,7 +91,7 @@ function popupRow(label, value) {
 }
 
 /* -------------------------------------------------------------------------
-   3. LAYER GROUPS (populated as data loads)
+   3. LAYER GROUPS
    ------------------------------------------------------------------------- */
 const layers = {
   boundary: L.layerGroup(),
@@ -118,18 +104,18 @@ const layers = {
   busstops: L.layerGroup(),
   parking: L.layerGroup(),
   trafficlights: L.layerGroup(),
-  crossings: L.layerGroup(),
-  complaints: L.layerGroup(),
-  heatmap: null // built once leaflet.heat data is ready
+  crossings: L.layerGroup()
 };
 
+// Layers visible by default: boundary, roads, crossings.
+// Everything else starts off so the first view isn't overcrowded —
+// switch any of them on from the panel.
 layers.boundary.addTo(map);
 layers.roads.addTo(map);
 layers.crossings.addTo(map);
-layers.complaints.addTo(map);
 
 /* -------------------------------------------------------------------------
-   4. BOUNDARY
+   4. BOUNDARY — Western Province outline
    ------------------------------------------------------------------------- */
 loadGeoJSON(DATA.boundary).then(gj => {
   const styled = L.geoJSON(gj, {
@@ -137,17 +123,21 @@ loadGeoJSON(DATA.boundary).then(gj => {
       color: '#D64545',
       weight: 2.5,
       fillColor: '#0F4C4C',
-      fillOpacity: 0.04,
-      dashArray: '0'
+      fillOpacity: 0.04
     }
   });
   styled.addTo(layers.boundary);
-  // Fit map to the province on first load
+  // Fit the map to the actual province boundary on first load
   try { map.fitBounds(styled.getBounds(), { padding: [20, 20] }); } catch (e) { /* noop */ }
+
+  // "Reset view" button re-fits to the boundary at any time
+  document.getElementById('resetViewBtn').addEventListener('click', () => {
+    try { map.fitBounds(styled.getBounds(), { padding: [20, 20] }); } catch (e) { /* noop */ }
+  });
 });
 
 /* -------------------------------------------------------------------------
-   5. ROAD NETWORK  (major roads — already simplified/filtered offline)
+   5. ROAD NETWORK (major roads — pre-simplified/filtered offline)
    ------------------------------------------------------------------------- */
 const ROAD_STYLE_BY_CLASS = {
   motorway: { color: '#C8852A', weight: 3 },
@@ -197,7 +187,7 @@ loadGeoJSON(DATA.pedpaths).then(gj => {
 });
 
 /* -------------------------------------------------------------------------
-   7. RAILWAY
+   7. RAILWAY LINES
    ------------------------------------------------------------------------- */
 loadGeoJSON(DATA.railway).then(gj => {
   setCount('count-railway', gj.features.length);
@@ -219,17 +209,15 @@ function circleIcon(color, radius = 5, weight = 1.5) {
   });
 }
 
-function buildPointLayer(geojsonUrl, targetGroup, color, countId, popupTitleFallback, extraRows) {
+function buildPointLayer(geojsonUrl, targetGroup, color, countId, popupTitleFallback) {
   loadGeoJSON(geojsonUrl).then(gj => {
     setCount(countId, gj.features.length);
     L.geoJSON(gj, {
       pointToLayer: circleIcon(color),
       onEachFeature: (f, layer) => {
         const p = f.properties;
-        const rows = extraRows ? extraRows(p) : '';
         layer.bindPopup(`
           <div class="popup-title">${p.name || popupTitleFallback}</div>
-          ${rows}
           ${popupRow('OSM ID', p.osm_id)}
         `);
       }
@@ -244,7 +232,7 @@ buildPointLayer(DATA.railstations, layers.railstations, '#5C4A8C', 'count-railst
 buildPointLayer(DATA.parking, layers.parking, '#8E5BAE', 'count-parking', 'Parking area');
 buildPointLayer(DATA.trafficlights, layers.trafficlights, '#C8852A', 'count-trafficlights', 'Traffic signal');
 
-// Crossings get a slightly distinct marker (small diamond-ish circle) since it's a key safety layer
+// Crossings get a slightly distinct marker since it's a key pedestrian-safety layer
 loadGeoJSON(DATA.crossings).then(gj => {
   setCount('count-crossings', gj.features.length);
   L.geoJSON(gj, {
@@ -259,21 +247,20 @@ loadGeoJSON(DATA.crossings).then(gj => {
 });
 
 /* -------------------------------------------------------------------------
-   9. LAYER TOGGLES (checkbox wiring)
+   9. LAYER TOGGLES (checkbox wiring) — all 10 layers + boundary
    ------------------------------------------------------------------------- */
 const TOGGLE_MAP = [
   ['toggle-boundary', 'boundary'],
   ['toggle-roads', 'roads'],
   ['toggle-pedpaths', 'pedpaths'],
   ['toggle-railway', 'railway'],
+  ['toggle-railstations', 'railstations'],
   ['toggle-crossings', 'crossings'],
   ['toggle-trafficlights', 'trafficlights'],
-  ['toggle-complaints', 'complaints'],
   ['toggle-parking', 'parking'],
   ['toggle-schools', 'schools'],
   ['toggle-hospitals', 'hospitals'],
-  ['toggle-busstops', 'busstops'],
-  ['toggle-railstations', 'railstations']
+  ['toggle-busstops', 'busstops']
 ];
 
 TOGGLE_MAP.forEach(([checkboxId, layerKey]) => {
@@ -286,259 +273,7 @@ TOGGLE_MAP.forEach(([checkboxId, layerKey]) => {
 });
 
 /* -------------------------------------------------------------------------
-   10. COMPLAINTS — load from localStorage, render, filter, heatmap
-   ------------------------------------------------------------------------- */
-function getComplaints() {
-  try {
-    return JSON.parse(localStorage.getItem(LS_KEY)) || [];
-  } catch (e) {
-    return [];
-  }
-}
-
-function saveComplaints(list) {
-  localStorage.setItem(LS_KEY, JSON.stringify(list));
-}
-
-// Seed a few sample reports on first run so the map/dashboard aren't empty.
-// Delete this block (or clear localStorage) once real public submissions exist.
-function seedSampleComplaints() {
-  if (getComplaints().length > 0) return;
-  const samples = [
-    { lat: 6.9271, lng: 79.8612, type: 'crossing', severity: 'high', desc: 'No marked crossing near busy junction, pedestrians cross between fast traffic.', date: '2026-05-12' },
-    { lat: 6.9344, lng: 79.8428, type: 'sidewalk', severity: 'medium', desc: 'Sidewalk slabs broken and uneven for ~40m, trip hazard.', date: '2026-05-20' },
-    { lat: 6.7964, lng: 79.9008, type: 'lighting', severity: 'medium', desc: 'Street lights non-functional along the footpath at night.', date: '2026-06-02' },
-    { lat: 6.8410, lng: 79.8770, type: 'parking', severity: 'low', desc: 'Vehicles parked on the walkway, pedestrians forced onto the road.', date: '2026-06-08' },
-    { lat: 7.0840, lng: 79.9986, type: 'drain', severity: 'high', desc: 'Open drain next to footpath, uncovered for several months.', date: '2026-06-14' },
-    { lat: 6.7106, lng: 79.9074, type: 'construction', severity: 'medium', desc: 'Construction materials block half the pavement width.', date: '2026-06-18' },
-    { lat: 6.8649, lng: 79.8997, type: 'flooding', severity: 'high', desc: 'Pathway floods completely during monsoon rain, impassable.', date: '2026-06-20' },
-    { lat: 6.9147, lng: 79.8757, type: 'accessibility', severity: 'medium', desc: 'No ramp access at this crossing, wheelchair users must detour.', date: '2026-06-22' }
-  ];
-  saveComplaints(samples.map((s, i) => ({ id: 'seed-' + i, ...s })));
-}
-seedSampleComplaints();
-
-let heatLayer = null;
-let activeFilters = { type: 'all', severities: new Set(['low', 'medium', 'high']) };
-
-function renderComplaints() {
-  layers.complaints.clearLayers();
-  const all = getComplaints();
-  const filtered = all.filter(c =>
-    (activeFilters.type === 'all' || c.type === activeFilters.type) &&
-    activeFilters.severities.has(c.severity)
-  );
-
-  filtered.forEach(c => {
-    const marker = L.circleMarker([c.lat, c.lng], {
-      radius: c.severity === 'high' ? 8 : c.severity === 'medium' ? 6.5 : 5,
-      weight: 2,
-      color: '#fff',
-      fillColor: SEVERITY_COLOR[c.severity],
-      fillOpacity: 0.92
-    });
-    marker.bindPopup(`
-      <span class="popup-sev popup-sev-${c.severity}">${c.severity} severity</span>
-      <div class="popup-title">${ISSUE_LABELS[c.type] || c.type}</div>
-      <div class="popup-row">${c.desc || ''}</div>
-      ${popupRow('Reported', c.date)}
-      ${c.photo ? `<img class="popup-photo" src="${c.photo}" alt="Reported issue photo" />` : ''}
-    `);
-    marker.addTo(layers.complaints);
-  });
-
-  // heatmap uses ALL complaints regardless of filter, weighted by severity
-  if (heatLayer) { map.removeLayer(heatLayer); }
-  const heatPoints = all.map(c => [c.lat, c.lng, c.severity === 'high' ? 1 : c.severity === 'medium' ? 0.6 : 0.3]);
-  heatLayer = L.heatLayer(heatPoints, { radius: 28, blur: 22, maxZoom: 17, gradient: { 0.2: '#1C8585', 0.5: '#E8A33D', 0.8: '#D64545' } });
-  if (document.getElementById('toggle-heatmap').checked) heatLayer.addTo(map);
-
-  updateStatsAndDashboard(all, filtered);
-}
-
-document.getElementById('toggle-heatmap').addEventListener('change', e => {
-  if (!heatLayer) return;
-  if (e.target.checked) heatLayer.addTo(map);
-  else map.removeLayer(heatLayer);
-});
-
-document.getElementById('filterType').addEventListener('change', e => {
-  activeFilters.type = e.target.value;
-  renderComplaints();
-});
-
-document.querySelectorAll('#severityChips .chip').forEach(chip => {
-  chip.addEventListener('click', () => {
-    const sev = chip.dataset.sev;
-    chip.classList.toggle('active');
-    if (chip.classList.contains('active')) activeFilters.severities.add(sev);
-    else activeFilters.severities.delete(sev);
-    renderComplaints();
-  });
-});
-
-/* -------------------------------------------------------------------------
-   11. STATS + DASHBOARD
-   ------------------------------------------------------------------------- */
-function updateStatsAndDashboard(all, filtered) {
-  setCount('count-complaints', all.length);
-  setCount('statTotal', all.length);
-  setCount('statHigh', all.filter(c => c.severity === 'high').length);
-
-  const now = new Date('2026-06-26');
-  const monthAgo = new Date(now); monthAgo.setDate(monthAgo.getDate() - 30);
-  const openThisMonth = all.filter(c => c.date && new Date(c.date) >= monthAgo);
-  setCount('statOpen', openThisMonth.length);
-
-  // by type
-  const byType = {};
-  Object.keys(ISSUE_LABELS).forEach(k => byType[k] = 0);
-  all.forEach(c => { byType[c.type] = (byType[c.type] || 0) + 1; });
-  const maxType = Math.max(1, ...Object.values(byType));
-  const typeEl = document.getElementById('chartByType');
-  typeEl.innerHTML = Object.entries(byType)
-    .sort((a, b) => b[1] - a[1])
-    .map(([k, v]) => `
-      <div class="bar-row">
-        <span class="bar-row-label">${ISSUE_LABELS[k]}</span>
-        <span class="bar-row-track"><span class="bar-row-fill" style="width:${(v / maxType * 100)}%"></span></span>
-        <span class="bar-row-val">${v}</span>
-      </div>
-    `).join('');
-
-  // by severity
-  const bySev = { low: 0, medium: 0, high: 0 };
-  all.forEach(c => { bySev[c.severity] = (bySev[c.severity] || 0) + 1; });
-  const maxSev = Math.max(1, ...Object.values(bySev));
-  const sevEl = document.getElementById('chartBySeverity');
-  sevEl.innerHTML = Object.entries(bySev).map(([k, v]) => `
-    <div class="bar-row">
-      <span class="bar-row-label" style="text-transform:capitalize">${k}</span>
-      <span class="bar-row-track"><span class="bar-row-fill" style="width:${(v / maxSev * 100)}%; background:${SEVERITY_COLOR[k]}"></span></span>
-      <span class="bar-row-val">${v}</span>
-    </div>
-  `).join('');
-
-  // recent list
-  const recentEl = document.getElementById('recentList');
-  const recent = [...all].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 6);
-  recentEl.innerHTML = recent.length ? recent.map(c => `
-    <div class="recent-item">
-      <div class="ri-top">
-        <span class="ri-type">${ISSUE_LABELS[c.type] || c.type}</span>
-        <span class="popup-sev popup-sev-${c.severity}" style="margin:0">${c.severity}</span>
-      </div>
-      <div class="ri-desc">${(c.desc || '').slice(0, 90)}${(c.desc || '').length > 90 ? '…' : ''}</div>
-    </div>
-  `).join('') : '<div class="empty-state">No reports yet.</div>';
-}
-
-/* -------------------------------------------------------------------------
-   12. REPORT MODAL — click-to-pin, geolocation, submit
-   ------------------------------------------------------------------------- */
-const reportModal = document.getElementById('reportModal');
-const complaintForm = document.getElementById('complaintForm');
-const coordDisplay = document.getElementById('coordDisplay');
-let pendingLatLng = null;
-let pickingLocation = false;
-let pinMarker = null;
-
-function openModal() {
-  reportModal.hidden = false;
-  pickingLocation = true;
-  coordDisplay.textContent = 'No location selected yet — click the map.';
-  pendingLatLng = null;
-  if (pinMarker) { map.removeLayer(pinMarker); pinMarker = null; }
-}
-function closeModal() {
-  reportModal.hidden = true;
-  pickingLocation = false;
-  complaintForm.reset();
-  if (pinMarker) { map.removeLayer(pinMarker); pinMarker = null; }
-}
-
-document.getElementById('reportBtn').addEventListener('click', openModal);
-document.getElementById('closeModal').addEventListener('click', closeModal);
-document.getElementById('cancelReport').addEventListener('click', closeModal);
-reportModal.addEventListener('click', e => { if (e.target === reportModal) closeModal(); });
-
-map.on('click', e => {
-  if (!pickingLocation) return;
-  pendingLatLng = e.latlng;
-  coordDisplay.textContent = `Selected: ${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`;
-  if (pinMarker) map.removeLayer(pinMarker);
-  pinMarker = L.marker(e.latlng, {
-    icon: L.divIcon({ className: '', html: '<div style="width:14px;height:14px;border-radius:50%;background:#D64545;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.4)"></div>', iconSize: [14, 14] })
-  }).addTo(map);
-});
-
-document.getElementById('useMyLocation').addEventListener('click', () => {
-  if (!navigator.geolocation) {
-    coordDisplay.textContent = 'Geolocation is not supported by this browser.';
-    return;
-  }
-  coordDisplay.textContent = 'Locating…';
-  navigator.geolocation.getCurrentPosition(
-    pos => {
-      const ll = L.latLng(pos.coords.latitude, pos.coords.longitude);
-      pendingLatLng = ll;
-      coordDisplay.textContent = `Selected: ${ll.lat.toFixed(5)}, ${ll.lng.toFixed(5)} (current location)`;
-      map.panTo(ll);
-      if (pinMarker) map.removeLayer(pinMarker);
-      pinMarker = L.marker(ll, {
-        icon: L.divIcon({ className: '', html: '<div style="width:14px;height:14px;border-radius:50%;background:#D64545;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.4)"></div>', iconSize: [14, 14] })
-      }).addTo(map);
-    },
-    () => { coordDisplay.textContent = 'Could not get your location. Click the map instead.'; }
-  );
-});
-
-complaintForm.addEventListener('submit', async e => {
-  e.preventDefault();
-  if (!pendingLatLng) {
-    coordDisplay.textContent = 'Please select a location on the map first.';
-    coordDisplay.style.color = '#D64545';
-    return;
-  }
-
-  const type = document.getElementById('issueType').value;
-  const severity = complaintForm.querySelector('input[name="severity"]:checked').value;
-  const desc = document.getElementById('issueDesc').value.trim();
-  const photoFile = document.getElementById('issuePhoto').files[0];
-
-  let photoDataUrl = null;
-  if (photoFile) {
-    photoDataUrl = await new Promise(resolve => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(photoFile);
-    });
-  }
-
-  const newComplaint = {
-    id: 'c-' + Date.now(),
-    lat: pendingLatLng.lat,
-    lng: pendingLatLng.lng,
-    type, severity, desc,
-    photo: photoDataUrl,
-    date: new Date().toISOString().slice(0, 10)
-  };
-
-  // TODO(backend): replace this localStorage write with a POST to your real
-  // collection endpoint (Google Form prefilled-link submit, Firebase, a
-  // Sheets-backed API, etc). Keep the same `newComplaint` shape so the rest
-  // of the map code doesn't need to change.
-  const all = getComplaints();
-  all.push(newComplaint);
-  saveComplaints(all);
-
-  closeModal();
-  renderComplaints();
-});
-
-/* -------------------------------------------------------------------------
-   13. PANEL COLLAPSE / DASHBOARD TOGGLE
+   10. PANEL COLLAPSE
    ------------------------------------------------------------------------- */
 const layerPanel = document.getElementById('layerPanel');
 const reopenLeft = document.getElementById('reopenLeft');
@@ -551,21 +286,8 @@ reopenLeft.addEventListener('click', () => {
   reopenLeft.hidden = true;
 });
 
-const dashboardPanel = document.getElementById('dashboardPanel');
-const dashboardBtn = document.getElementById('dashboardBtn');
-dashboardBtn.addEventListener('click', () => {
-  const isOpen = !dashboardPanel.hidden;
-  dashboardPanel.hidden = isOpen;
-  dashboardBtn.setAttribute('aria-pressed', String(!isOpen));
-  if (!isOpen) updateStatsAndDashboard(getComplaints(), getComplaints());
-});
-document.getElementById('closeDashboard').addEventListener('click', () => {
-  dashboardPanel.hidden = true;
-  dashboardBtn.setAttribute('aria-pressed', 'false');
-});
-
 /* -------------------------------------------------------------------------
-   14. LOCATION SEARCH (Nominatim, scoped to Western Province bounding box)
+   11. LOCATION SEARCH (Nominatim, scoped to Western Province bounding box)
    ------------------------------------------------------------------------- */
 const searchInput = document.getElementById('locationSearch');
 const searchResults = document.getElementById('searchResults');
@@ -615,8 +337,3 @@ searchResults.addEventListener('click', e => {
 document.addEventListener('click', e => {
   if (!e.target.closest('.topbar-search')) searchResults.hidden = true;
 });
-
-/* -------------------------------------------------------------------------
-   15. INITIAL RENDER
-   ------------------------------------------------------------------------- */
-renderComplaints();
