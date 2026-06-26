@@ -49,6 +49,12 @@ body {
   overflow: hidden;
 }
 
+/* The [hidden] attribute must always win over component display rules
+   (.panel, .modal-backdrop, etc. set their own display: flex/block).
+   Without this override, toggling element.hidden = true/false in JS has
+   no visible effect on elements whose CSS already sets a display value. */
+[hidden] { display: none !important; }
+
 button { font-family: inherit; cursor: pointer; }
 input, select, textarea { font-family: inherit; }
 
@@ -365,6 +371,7 @@ input, select, textarea { font-family: inherit; }
   display: flex; align-items: center; justify-content: center;
   z-index: 2000; padding: 20px;
 }
+.modal-backdrop[hidden] { display: none; }
 .modal {
   background: var(--white); border-radius: var(--radius-md);
   width: 100%; max-width: 460px; max-height: 88vh;
