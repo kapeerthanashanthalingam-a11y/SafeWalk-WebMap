@@ -1,13 +1,330 @@
 <!DOCTYPE html>
-<html><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SafeWalk</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="css/style.css">
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SafeWalk — Pedestrian Safety Map | Western Province</title>
+<meta name="description" content="Report and explore pedestrian safety issues across Sri Lanka's Western Province." />
+
+<!-- Leaflet core -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+<!-- Leaflet plugins: heatmap + marker cluster -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+
+<!-- Fonts: Oswald (display/signage) + Inter (body) + IBM Plex Mono (data) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-<h2>SafeWalk: Public Pedestrian Safety and Complaint Web Map</h2>
-<div id="map"></div>
+
+<!-- ===================== TOP BAR ===================== -->
+<header class="topbar">
+  <div class="topbar-brand">
+    <span class="brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M12 2 2 7v2h20V7L12 2Zm0 5.2 6.7 3.3H5.3L12 7.2ZM4 11v9h2v-7h2v7h2v-7h4v7h2v-7h2v7h2v-9H4Z"/></svg>
+    </span>
+    <div class="brand-text">
+      <span class="brand-title">SAFEWALK</span>
+      <span class="brand-sub">Western Province Pedestrian Safety Map</span>
+    </div>
+  </div>
+
+  <div class="topbar-search">
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 5L20.49 19l-5-5Zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14Z"/></svg>
+    <input id="locationSearch" type="text" placeholder="Search a place in Western Province…" autocomplete="off" />
+    <div id="searchResults" class="search-results" hidden></div>
+  </div>
+
+  <nav class="topbar-actions">
+    <button id="reportBtn" class="btn btn-primary">
+      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M11 17h2v-6h-2Zm1-15a10 10 0 1 0 .01 0ZM11 9h2V7h-2Z"/></svg>
+      Report an issue
+    </button>
+    <button id="dashboardBtn" class="btn btn-ghost" aria-pressed="false">
+      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M3 13h8V3H3Zm0 8h8v-6H3Zm10 0h8V11h-8Zm0-18v6h8V3Z"/></svg>
+      Dashboard
+    </button>
+  </nav>
+</header>
+
+<!-- ===================== MAIN LAYOUT ===================== -->
+<div class="app-shell">
+
+  <!-- LEFT PANEL: layer manifest -->
+  <aside class="panel panel-left" id="layerPanel">
+    <div class="panel-header">
+      <h2>Map Layers</h2>
+      <button class="panel-collapse" id="collapseLeft" aria-label="Collapse panel">‹</button>
+    </div>
+
+    <div class="panel-body">
+
+      <!-- Base map switcher -->
+      <section class="layer-group">
+        <h3 class="layer-group-title">Base map</h3>
+        <div class="basemap-switch" id="basemapSwitch">
+          <button class="basemap-opt active" data-base="light">Light</button>
+          <button class="basemap-opt" data-base="streets">Streets</button>
+          <button class="basemap-opt" data-base="satellite">Satellite</button>
+          <button class="basemap-opt" data-base="dark">Dark</button>
+        </div>
+      </section>
+
+      <!-- Boundary -->
+      <section class="layer-group">
+        <h3 class="layer-group-title">01 — Boundary</h3>
+        <label class="layer-row">
+          <input type="checkbox" id="toggle-boundary" checked />
+          <span class="swatch swatch-boundary"></span>
+          <span class="layer-name">Western Province outline</span>
+        </label>
+      </section>
+
+      <!-- Infrastructure -->
+      <section class="layer-group">
+        <h3 class="layer-group-title">02 — Infrastructure</h3>
+        <label class="layer-row">
+          <input type="checkbox" id="toggle-roads" checked />
+          <span class="swatch swatch-roads"></span>
+          <span class="layer-name">Road network</span>
+          <span class="layer-count" id="count-roads">–</span>
+        </label>
+        <label class="layer-row">
+          <input type="checkbox" id="toggle-pedpaths" />
+          <span class="swatch swatch-pedpaths"></span>
+          <span class="layer-name">Pedestrian paths</span>
+          <span class="layer-count" id="count-pedpaths">–</span>
+        </label>
+        <label class="layer-row">
+          <input type="checkbox" id="toggle-railway" />
+          <span class="swatch swatch-railway"></span>
+          <span class="layer-name">Railway lines</span>
+          <span class="layer-count" id="count-railway">–</span>
+        </label>
+        <label class="layer-row">
+          <input type="checkbox" id="toggle-crossings" checked />
+          <span class="swatch swatch-crossings"></span>
+          <span class="layer-name">Pedestrian crossings</span>
+          <span class="layer-count" id="count-crossings">–</span>
+        </label>
+        <label class="layer-row">
+          <input type="checkbox" id="toggle-trafficlights" />
+          <span class="swatch swatch-trafficlights"></span>
+          <span class="layer-name">Traffic signals</span>
+          <span class="layer-count" id="count-trafficlights">–</span>
+        </label>
+      </section>
+
+      <!-- Hazard reports -->
+      <section class="layer-group">
+        <h3 class="layer-group-title">03 — Hazard reports</h3>
+        <label class="layer-row">
+          <input type="checkbox" id="toggle-complaints" checked />
+          <span class="swatch swatch-complaints"></span>
+          <span class="layer-name">Public complaints</span>
+          <span class="layer-count" id="count-complaints">0</span>
+        </label>
+        <label class="layer-row">
+          <input type="checkbox" id="toggle-heatmap" />
+          <span class="swatch swatch-heatmap"></span>
+          <span class="layer-name">Risk hotspot heatmap</span>
+        </label>
+        <label class="layer-row">
+          <input type="checkbox" id="toggle-parking" />
+          <span class="swatch swatch-parking"></span>
+          <span class="layer-name">Illegal / informal parking</span>
+          <span class="layer-count" id="count-parking">–</span>
+        </label>
+      </section>
+
+      <!-- Facilities -->
+      <section class="layer-group">
+        <h3 class="layer-group-title">04 — Public facilities</h3>
+        <label class="layer-row">
+          <input type="checkbox" id="toggle-schools" />
+          <span class="swatch swatch-schools"></span>
+          <span class="layer-name">Schools</span>
+          <span class="layer-count" id="count-schools">–</span>
+        </label>
+        <label class="layer-row">
+          <input type="checkbox" id="toggle-hospitals" />
+          <span class="swatch swatch-hospitals"></span>
+          <span class="layer-name">Hospitals</span>
+          <span class="layer-count" id="count-hospitals">–</span>
+        </label>
+        <label class="layer-row">
+          <input type="checkbox" id="toggle-busstops" />
+          <span class="swatch swatch-busstops"></span>
+          <span class="layer-name">Bus stops</span>
+          <span class="layer-count" id="count-busstops">–</span>
+        </label>
+        <label class="layer-row">
+          <input type="checkbox" id="toggle-railstations" />
+          <span class="swatch swatch-railstations"></span>
+          <span class="layer-name">Railway stations</span>
+          <span class="layer-count" id="count-railstations">–</span>
+        </label>
+      </section>
+
+      <!-- Filter by severity/type for complaints -->
+      <section class="layer-group">
+        <h3 class="layer-group-title">05 — Filter complaints</h3>
+        <div class="filter-row">
+          <label class="filter-label">Issue type</label>
+          <select id="filterType">
+            <option value="all">All types</option>
+            <option value="sidewalk">Damaged sidewalk</option>
+            <option value="crossing">Unsafe crossing</option>
+            <option value="lighting">Poor lighting</option>
+            <option value="parking">Illegal parking</option>
+            <option value="drain">Open drain</option>
+            <option value="construction">Construction obstruction</option>
+            <option value="flooding">Flooded pathway</option>
+            <option value="accessibility">Accessibility barrier</option>
+          </select>
+        </div>
+        <div class="filter-row">
+          <label class="filter-label">Severity</label>
+          <div class="severity-chips" id="severityChips">
+            <button class="chip chip-low active" data-sev="low">Low</button>
+            <button class="chip chip-medium active" data-sev="medium">Medium</button>
+            <button class="chip chip-high active" data-sev="high">High</button>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </aside>
+
+  <!-- MAP -->
+  <main class="map-wrap">
+    <div id="map"></div>
+
+    <!-- floating stat chips -->
+    <div class="stat-chips" id="statChips">
+      <div class="stat-chip">
+        <span class="stat-num" id="statTotal">0</span>
+        <span class="stat-label">Reports total</span>
+      </div>
+      <div class="stat-chip stat-chip-high">
+        <span class="stat-num" id="statHigh">0</span>
+        <span class="stat-label">High severity</span>
+      </div>
+      <div class="stat-chip">
+        <span class="stat-num" id="statOpen">0</span>
+        <span class="stat-label">Open this month</span>
+      </div>
+    </div>
+
+    <!-- legend -->
+    <div class="legend" id="legend">
+      <h4>Legend</h4>
+      <div class="legend-row"><span class="legend-dot legend-dot-low"></span> Low severity</div>
+      <div class="legend-row"><span class="legend-dot legend-dot-medium"></span> Medium severity</div>
+      <div class="legend-row"><span class="legend-dot legend-dot-high"></span> High severity</div>
+      <div class="legend-row"><span class="legend-line legend-line-road"></span> Road network</div>
+      <div class="legend-row"><span class="legend-line legend-line-path"></span> Pedestrian path</div>
+    </div>
+
+    <!-- left panel reopen tab (shown when collapsed) -->
+    <button class="reopen-tab" id="reopenLeft" hidden>Layers ›</button>
+  </main>
+
+  <!-- RIGHT PANEL: dashboard (hidden by default) -->
+  <aside class="panel panel-right" id="dashboardPanel" hidden>
+    <div class="panel-header">
+      <h2>Dashboard</h2>
+      <button class="panel-collapse" id="closeDashboard" aria-label="Close dashboard">×</button>
+    </div>
+    <div class="panel-body">
+      <section class="dash-section">
+        <h3>Reports by issue type</h3>
+        <div id="chartByType" class="bar-chart"></div>
+      </section>
+      <section class="dash-section">
+        <h3>Reports by severity</h3>
+        <div id="chartBySeverity" class="bar-chart"></div>
+      </section>
+      <section class="dash-section">
+        <h3>Recent reports</h3>
+        <div id="recentList" class="recent-list"></div>
+      </section>
+    </div>
+  </aside>
+
+</div>
+
+<!-- ===================== REPORT MODAL ===================== -->
+<div class="modal-backdrop" id="reportModal" hidden>
+  <div class="modal" role="dialog" aria-labelledby="modalTitle">
+    <div class="modal-header">
+      <h2 id="modalTitle">Report a pedestrian safety issue</h2>
+      <button class="modal-close" id="closeModal" aria-label="Close">×</button>
+    </div>
+    <form id="complaintForm" class="modal-body">
+      <p class="modal-hint">Click anywhere on the map to drop a pin at the issue location, or use your current location.</p>
+
+      <button type="button" id="useMyLocation" class="btn btn-ghost btn-small">📍 Use my current location</button>
+      <div class="coord-display" id="coordDisplay">No location selected yet — click the map.</div>
+
+      <div class="form-row">
+        <label for="issueType">Issue type</label>
+        <select id="issueType" required>
+          <option value="">Select an issue type…</option>
+          <option value="sidewalk">Damaged sidewalk</option>
+          <option value="crossing">Unsafe road crossing</option>
+          <option value="lighting">Poor street lighting</option>
+          <option value="parking">Illegal parking on walkway</option>
+          <option value="drain">Open drain</option>
+          <option value="construction">Construction obstruction</option>
+          <option value="flooding">Flooded pathway</option>
+          <option value="accessibility">Accessibility barrier</option>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <label>Severity</label>
+        <div class="severity-radio">
+          <label><input type="radio" name="severity" value="low" /> Low</label>
+          <label><input type="radio" name="severity" value="medium" checked /> Medium</label>
+          <label><input type="radio" name="severity" value="high" /> High</label>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label for="issueDesc">Description</label>
+        <textarea id="issueDesc" rows="3" placeholder="Describe what you observed…" required></textarea>
+      </div>
+
+      <div class="form-row">
+        <label for="issuePhoto">Photo (optional)</label>
+        <input type="file" id="issuePhoto" accept="image/*" />
+      </div>
+
+      <div class="form-note">
+        <strong>Note:</strong> this demo stores reports in your browser only (no server). Connect a Google
+        Form / database endpoint in <code>js/script.js</code> to collect real public submissions — see the comments
+        marked <code>TODO(backend)</code>.
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="cancelReport">Cancel</button>
+        <button type="submit" class="btn btn-primary">Submit report</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ===================== LEAFLET + PLUGINS ===================== -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+
 <script src="js/script.js"></script>
-</body></html>
+</body>
+</html>
