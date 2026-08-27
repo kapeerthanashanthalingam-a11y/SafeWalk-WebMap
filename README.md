@@ -2,108 +2,88 @@
 
 ## ⚠️ Two things you must do before the map fully works
 
-### Step A — Get the Google Form entry IDs
+### Step A — Add Latitude/Longitude to your Google Form
 
-1. Open your Google Form in edit mode:
-   `https://docs.google.com/forms/d/1vaI_n_PsaTVzYlfzbBh4mVnpD1UG5B_SPdKiAbKVHGQ/edit?pli=1`
+Your form currently has no place to store *where* a pin was dropped. Open your
+form in edit mode and add:
 
-2. Click the **⋮ (three-dot menu)** in the top-right → **"Get pre-filled link"**
+1. A **Short answer** question titled exactly `Latitude` (mark it required)
+2. A **Short answer** question titled exactly `Longitude` (mark it required)
 
-3. Fill in a dummy answer for **every question**, then click **"Get link"**
+The map fills these in automatically before showing the form — visitors never
+see or type into them by hand.
 
-4. Copy the URL. It looks like:
-   ```
-   https://docs.google.com/forms/d/e/1FAIpQLSdgncnCOESnZJ2IJYGJAc-TssjL8kB_oAfr15CEbLBS63tLDQ/viewform?usp=pp_url&entry.1863083057=%F0%9F%9A%B6+Broken+Sidewalk&entry.302271118=Medium&entry.2123383240=2026-08-27&entry.507806241=broken
-   ```
+### Step B — Get those two entry IDs
 
-5. Open `js/script.js` and find the `ENTRY` block near the top:
+1. In the Form editor, click **⋮ → "Get pre-filled link"**
+2. Fill in dummy answers for **Latitude** and **Longitude** only (any numbers)
+   → click **"Get link"**
+3. Copy the resulting URL and look for `&entry.XXXXXXXXX=` next to each value
+   you typed
+4. Open `js/script.js`, find the `ENTRY` block near the top, and replace:
    ```js
-   const ENTRY = {
-     latitude:    'entry.ENTRY_LATITUDE',
-     longitude:   'entry.ENTRY_LONGITUDE',
-     issueType:   'entry.ENTRY_ISSUE_TYPE',
-     severity:    'entry.ENTRY_SEVERITY',
-     description: 'entry.ENTRY_DESCRIPTION',
-     name:        'entry.ENTRY_NAME',
-   };
+   latitude:  'entry.ENTRY_LATITUDE',   // ← paste the real entry.NNNNNNNNN here
+   longitude: 'entry.ENTRY_LONGITUDE',  // ← paste the real entry.NNNNNNNNN here
    ```
-   Replace each `ENTRY_XXXXXXX` with the matching `entry.XXXXXXXXX` from your prefill URL.
-   Match them to the right question by the dummy answer you entered.
 
-6. **Important — your Google Form must have these 6 questions** (in any order):
-   | Question label in form | Maps to |
-   |---|---|
-   | Latitude | `latitude` |
-   | Longitude | `longitude` |
-   | Issue Type | `issueType` |
-   | Severity | `severity` |
-   | Description | `description` |
-   | Name (optional) | `name` |
+## Step C — Publish the Google Sheet as CSV
 
-   If your form uses different question labels, update them to match,
-   or adjust the ENTRY mapping in script.js accordingly.
-
----
-
-### Step B — Publish the Google Sheet as CSV
-
-1. Open the Google Sheet linked to your form
-   (Form editor → Responses tab → the green Sheet icon)
-
-2. In the Sheet: **File → Share → Publish to web**
-
-3. Under "Link", choose:
-   - First dropdown: **Sheet1** (or whatever your tab is named)
-   - Second dropdown: **Comma-separated values (.csv)**
-
-4. Click **Publish** → confirm → **copy the URL**
-
-5. In `js/script.js`, paste it here:
+1. Open the Sheet linked to your form (Form editor → **Responses** tab → green
+   Sheets icon)
+2. **File → Share → Publish to web**
+3. Choose your response sheet's tab, and **Comma-separated values (.csv)**
+4. Click **Publish** → copy the URL
+5. In `js/script.js`, paste it into:
    ```js
    const SHEET_CSV_URL = 'YOUR_PUBLISHED_SHEET_CSV_URL_HERE';
    ```
 
-6. **Your Sheet column headers must match these names exactly**
-   (they're auto-created by Google Forms — check your Sheet row 1):
-   - `Timestamp`
-   - `Latitude`
-   - `Longitude`
-   - `Issue Type`
-   - `Severity`
-   - `Description`
-   - `Name`
-
-   If the headers differ, update the column name mapping in `renderReports()`
-   inside `script.js` (look for the "Column name mapping" comment).
+That's it — save, reload the page, and reports will start flowing both ways.
 
 ---
 
 ## How it works
 
-### Submitting a report
-1. User clicks **"Report issue"** in the top bar
-2. Clicks the map to drop a pin (or uses GPS)
-3. Fills in issue type, severity, description, name
-4. Reviews and clicks **Submit**
-5. The web map silently POSTs to Google Forms via a hidden iframe — no
-   page redirect, no Google Form page opens
-6. The pin appears on the map **immediately** (locally)
-7. After a few seconds, the next `fetchReports()` (or manual Refresh)
-   will pull the new row from the Sheet and re-render it
+### Submitting a report (any visitor to the map)
+1. Click **"Report issue"** in the top bar
+2. Step 1: click anywhere on the map (or use **"Use my current location"**) to
+   drop a pin at the issue's location
+3. Step 2: your **actual Google Form** appears embedded in the panel, already
+   carrying the pinned Latitude/Longitude — the visitor fills in issue type,
+   severity, date, description, photo, etc. exactly as you built the form, and
+   clicks **Submit** themselves inside it
+4. Google saves the response straight to your linked Sheet, same as any
+   normal Form submission
+5. Click **"Done / Close"** — the map refreshes from the Sheet so the new pin
+   shows up (it also auto-refreshes every 60s for everyone else)
 
-### Viewing reports
-- All submissions from the Google Sheet appear as **colored circle markers**:
-  - 🟢 Green = Low severity
-  - 🟡 Amber = Medium severity
-  - 🔴 Red = High severity
-- Click any marker for a popup: issue type, description, reporter name, date
-- The **Dashboard** (button in top bar) shows charts by issue type, by
-  severity, a count of reports this month, and a list of the 6 most recent
+Note: Google requires the visitor to be signed into a Google account to use
+the "Evidence (Upload a photo)" question, since file uploads aren't allowed
+for anonymous form responses. If you want fully anonymous reporting, consider
+making that question optional or removing it.
+
+### Viewing reports (any visitor to the map)
+- Every response in the Sheet renders as a colored circle marker:
+  green = Low, amber = Medium, red = High severity
+- Clicking a marker shows its issue type, description, reporter, and date
+- The **Dashboard** panel (top bar) shows totals, a breakdown by issue type
+  and severity, and the 6 most recent submissions — built from the same
+  live Sheet data everyone else sees
 
 ### As the form owner
-- Open the linked Google Sheet to see every submission in rows
-- Google Forms Responses tab shows summary charts of all answers
-- You can filter, sort, export to Excel, or connect to Google Data Studio
+- The linked Google Sheet has one row per submission, coordinates included
+- The Form's own **Responses** tab still shows Google's built-in summary charts
+- Export, filter, or connect the Sheet to Data Studio same as any other Sheet
+
+---
+
+## Adding photos, or making the form fully anonymous (optional)
+
+Photo upload works as your form intended, but Google requires the visitor to
+sign into a Google account to use file-upload questions — that's a platform
+rule for anonymous public forms, not something this map controls. If you'd
+rather keep reporting fully anonymous, make "Evidence" optional (or remove
+it) in the Form editor.
 
 ---
 
@@ -115,13 +95,12 @@ python3 -m http.server 8000
 # open http://localhost:8000
 ```
 
-Note: `fetch()` is blocked on `file://` pages, so you must serve the folder.
+`fetch()` is blocked on `file://` pages, so the folder must be served, not
+opened directly.
 
 ## Deploying on GitHub Pages
 
-1. Push this entire folder to your repo's `main` branch (as the root, or in `/docs`)
-2. Go to Repo → **Settings → Pages** → set source branch and folder
-3. Your map will be live at `https://<username>.github.io/<repo-name>/`
-
-The Sheet CSV URL and form submission will work on GitHub Pages with no
-extra configuration needed.
+1. Push this folder to your repo (as root, or in `/docs`)
+2. Repo → **Settings → Pages** → set the source branch/folder
+3. Live at `https://<username>.github.io/<repo-name>/` — no extra config needed,
+   the Sheet CSV URL and Form submission both work as-is on GitHub Pages.
