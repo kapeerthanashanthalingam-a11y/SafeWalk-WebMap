@@ -5,7 +5,7 @@
 ### Step A — Get the Google Form entry IDs
 
 1. Open your Google Form in edit mode:
-   `https://docs.google.com/forms/d/1vaI_n_PsaTVzYlfzbBh4mVnpD1UG5B_SPdKiAbKVHGQ/edit`
+   `https://docs.google.com/forms/d/1vaI_n_PsaTVzYlfzbBh4mVnpD1UG5B_SPdKiAbKVHGQ/edit?pli=1`
 
 2. Click the **⋮ (three-dot menu)** in the top-right → **"Get pre-filled link"**
 
@@ -13,10 +13,7 @@
 
 4. Copy the URL. It looks like:
    ```
-   https://docs.google.com/forms/d/1vaI_.../viewform?usp=pp_url
-     &entry.123456789=Dummy+Answer
-     &entry.987654321=Another
-     ...
+   https://docs.google.com/forms/d/e/1FAIpQLSdgncnCOESnZJ2IJYGJAc-TssjL8kB_oAfr15CEbLBS63tLDQ/viewform?usp=pp_url&entry.1863083057=%F0%9F%9A%B6+Broken+Sidewalk&entry.302271118=Medium&entry.2123383240=2026-08-27&entry.507806241=broken
    ```
 
 5. Open `js/script.js` and find the `ENTRY` block near the top:
