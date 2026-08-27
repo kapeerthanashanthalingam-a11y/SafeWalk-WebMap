@@ -1,188 +1,253 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>SafeWalk — Pedestrian Infrastructure Map | Western Province</title>
-<meta name="description" content="Explore pedestrian infrastructure across Sri Lanka's Western Province." />
-
-<!-- Leaflet core -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-
-<!-- Fonts: Oswald (display/signage) + Inter (body) + IBM Plex Mono (data) -->
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>SafeWalk — Western Province Pedestrian Safety Map</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-
-<link rel="stylesheet" href="css/style.css" />
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css"/>
 </head>
 <body>
 
-<!-- ===================== TOP BAR ===================== -->
+<!-- ═══════════════════════════════════════════ TOP BAR ══ -->
 <header class="topbar">
   <div class="topbar-brand">
-    <span class="brand-mark" aria-hidden="true">
-      <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M12 2 2 7v2h20V7L12 2Zm0 5.2 6.7 3.3H5.3L12 7.2ZM4 11v9h2v-7h2v7h2v-7h4v7h2v-7h2v7h2v-9H4Z"/></svg>
+    <span class="brand-mark">
+      <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M13.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM9.8 8.9L7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3C14.8 12 16.8 13 19 13v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 8.3V13h2V9.6l1.8-.7"/></svg>
     </span>
     <div class="brand-text">
       <span class="brand-title">SAFEWALK</span>
-      <span class="brand-sub">Western Province Pedestrian Infrastructure Map</span>
+      <span class="brand-sub">Western Province Pedestrian Safety Map</span>
     </div>
   </div>
 
   <div class="topbar-search">
-    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 5L20.49 19l-5-5Zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14Z"/></svg>
-    <input id="locationSearch" type="text" placeholder="Search a place in Western Province…" autocomplete="off" />
+    <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-5-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+    <input id="locationSearch" type="text" placeholder="Search a place in Western Province…" autocomplete="off"/>
     <div id="searchResults" class="search-results" hidden></div>
   </div>
 
   <nav class="topbar-actions">
-    <button class="btn btn-ghost" id="resetViewBtn">
-      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M12 5V2L7 7l5 5V8a6 6 0 1 1-6 6H4a8 8 0 1 0 8-9Z"/></svg>
-      Reset view
+    <button id="reportBtn" class="btn btn-report">
+      <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+      Report issue
+    </button>
+    <button id="dashBtn" class="btn btn-ghost">
+      <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+      Dashboard
+    </button>
+    <button id="resetBtn" class="btn btn-ghost btn-icon" title="Reset view">
+      <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M12 5V2L8 6l4 4V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
     </button>
   </nav>
 </header>
 
-<!-- ===================== MAIN LAYOUT ===================== -->
+<!-- ═══════════════════════════════════════════ SHELL ═══ -->
 <div class="app-shell">
 
-  <!-- LEFT PANEL: layer manifest — ALL layers in one place -->
-  <aside class="panel panel-left" id="layerPanel">
-    <div class="panel-header">
-      <h2>Map Layers</h2>
-      <button class="panel-collapse" id="collapseLeft" aria-label="Collapse panel">‹</button>
+  <!-- ── LEFT PANEL: Layers ── -->
+  <aside class="panel" id="layerPanel">
+    <div class="panel-hd">
+      <span class="panel-hd-title">Map Layers</span>
+      <button class="panel-toggle" id="collapseLeft" title="Collapse">‹</button>
     </div>
+    <div class="panel-bd">
 
-    <div class="panel-body">
-
-      <!-- Base map switcher -->
-      <section class="layer-group">
-        <h3 class="layer-group-title">Base map</h3>
-        <div class="basemap-switch" id="basemapSwitch">
-          <button class="basemap-opt active" data-base="light">Light</button>
-          <button class="basemap-opt" data-base="streets">Streets</button>
-          <button class="basemap-opt" data-base="satellite">Satellite</button>
-          <button class="basemap-opt" data-base="dark">Dark</button>
+      <div class="layer-group">
+        <div class="lg-title">Base map</div>
+        <div class="basemap-grid">
+          <button class="bm-btn active" data-base="light">Light</button>
+          <button class="bm-btn" data-base="streets">Streets</button>
+          <button class="bm-btn" data-base="satellite">Satellite</button>
+          <button class="bm-btn" data-base="dark">Dark</button>
         </div>
-      </section>
+      </div>
 
-      <!-- Boundary -->
-      <section class="layer-group">
-        <h3 class="layer-group-title">Study area</h3>
-        <label class="layer-row">
-          <input type="checkbox" id="toggle-boundary" checked />
-          <span class="swatch swatch-boundary"></span>
-          <span class="layer-name">Western Province boundary</span>
-        </label>
-      </section>
+      <div class="layer-group">
+        <div class="lg-title">Study area</div>
+        <label class="lr"><input type="checkbox" id="t-boundary" checked/><span class="sw sw-boundary"></span><span class="ln">Western Province boundary</span></label>
+      </div>
 
-      <!-- All 10 data layers, one list -->
-      <section class="layer-group">
-        <h3 class="layer-group-title">Layers (10)</h3>
+      <div class="layer-group">
+        <div class="lg-title">OSM Infrastructure layers</div>
+        <label class="lr"><input type="checkbox" id="t-roads" checked/><span class="sw sw-roads"></span><span class="ln">Road network</span><span class="lc" id="c-roads">…</span></label>
+        <label class="lr"><input type="checkbox" id="t-pedpaths"/><span class="sw sw-pedpaths"></span><span class="ln">Pedestrian paths</span><span class="lc" id="c-pedpaths">…</span></label>
+        <label class="lr"><input type="checkbox" id="t-railway"/><span class="sw sw-railway"></span><span class="ln">Railway lines</span><span class="lc" id="c-railway">…</span></label>
+        <label class="lr"><input type="checkbox" id="t-railstations"/><span class="sw sw-railstations"></span><span class="ln">Railway stations</span><span class="lc" id="c-railstations">…</span></label>
+        <label class="lr"><input type="checkbox" id="t-crossings" checked/><span class="sw sw-crossings"></span><span class="ln">Pedestrian crossings</span><span class="lc" id="c-crossings">…</span></label>
+        <label class="lr"><input type="checkbox" id="t-trafficlights"/><span class="sw sw-trafficlights"></span><span class="ln">Traffic signals</span><span class="lc" id="c-trafficlights">…</span></label>
+        <label class="lr"><input type="checkbox" id="t-parking"/><span class="sw sw-parking"></span><span class="ln">Parking areas</span><span class="lc" id="c-parking">…</span></label>
+        <label class="lr"><input type="checkbox" id="t-schools"/><span class="sw sw-schools"></span><span class="ln">Schools</span><span class="lc" id="c-schools">…</span></label>
+        <label class="lr"><input type="checkbox" id="t-hospitals"/><span class="sw sw-hospitals"></span><span class="ln">Hospitals</span><span class="lc" id="c-hospitals">…</span></label>
+        <label class="lr"><input type="checkbox" id="t-busstops"/><span class="sw sw-busstops"></span><span class="ln">Bus stops</span><span class="lc" id="c-busstops">…</span></label>
+      </div>
 
-        <label class="layer-row">
-          <input type="checkbox" id="toggle-roads" checked />
-          <span class="swatch swatch-roads"></span>
-          <span class="layer-name">Road network</span>
-          <span class="layer-count" id="count-roads">–</span>
-        </label>
-
-        <label class="layer-row">
-          <input type="checkbox" id="toggle-pedpaths" />
-          <span class="swatch swatch-pedpaths"></span>
-          <span class="layer-name">Pedestrian paths</span>
-          <span class="layer-count" id="count-pedpaths">–</span>
-        </label>
-
-        <label class="layer-row">
-          <input type="checkbox" id="toggle-railway" />
-          <span class="swatch swatch-railway"></span>
-          <span class="layer-name">Railway lines</span>
-          <span class="layer-count" id="count-railway">–</span>
-        </label>
-
-        <label class="layer-row">
-          <input type="checkbox" id="toggle-railstations" />
-          <span class="swatch swatch-railstations"></span>
-          <span class="layer-name">Railway stations</span>
-          <span class="layer-count" id="count-railstations">–</span>
-        </label>
-
-        <label class="layer-row">
-          <input type="checkbox" id="toggle-crossings" checked />
-          <span class="swatch swatch-crossings"></span>
-          <span class="layer-name">Pedestrian crossings</span>
-          <span class="layer-count" id="count-crossings">–</span>
-        </label>
-
-        <label class="layer-row">
-          <input type="checkbox" id="toggle-trafficlights" />
-          <span class="swatch swatch-trafficlights"></span>
-          <span class="layer-name">Traffic signals</span>
-          <span class="layer-count" id="count-trafficlights">–</span>
-        </label>
-
-        <label class="layer-row">
-          <input type="checkbox" id="toggle-parking" />
-          <span class="swatch swatch-parking"></span>
-          <span class="layer-name">Parking areas</span>
-          <span class="layer-count" id="count-parking">–</span>
-        </label>
-
-        <label class="layer-row">
-          <input type="checkbox" id="toggle-schools" />
-          <span class="swatch swatch-schools"></span>
-          <span class="layer-name">Schools</span>
-          <span class="layer-count" id="count-schools">–</span>
-        </label>
-
-        <label class="layer-row">
-          <input type="checkbox" id="toggle-hospitals" />
-          <span class="swatch swatch-hospitals"></span>
-          <span class="layer-name">Hospitals</span>
-          <span class="layer-count" id="count-hospitals">–</span>
-        </label>
-
-        <label class="layer-row">
-          <input type="checkbox" id="toggle-busstops" />
-          <span class="swatch swatch-busstops"></span>
-          <span class="layer-name">Bus stops</span>
-          <span class="layer-count" id="count-busstops">–</span>
-        </label>
-      </section>
-
-      <div class="panel-footer-note">
-        Counts show once each layer finishes loading. Turn on a few layers
-        at a time for the clearest view — every layer is real OpenStreetMap
-        data for the Western Province.
+      <div class="layer-group">
+        <div class="lg-title">Public reports</div>
+        <label class="lr"><input type="checkbox" id="t-reports" checked/><span class="sw sw-reports"></span><span class="ln">Safety complaints</span><span class="lc" id="c-reports">0</span></label>
+        <div id="loadingReports" class="loading-hint">Loading responses…</div>
       </div>
 
     </div>
   </aside>
 
-  <!-- MAP -->
+  <!-- ── MAP ── -->
   <main class="map-wrap">
     <div id="map"></div>
 
-    <!-- legend -->
-    <div class="legend" id="legend">
-      <h4>Legend</h4>
-      <div class="legend-row"><span class="legend-swatch-line legend-line-boundary"></span> Province boundary</div>
-      <div class="legend-row"><span class="legend-swatch-line legend-line-road"></span> Road network</div>
-      <div class="legend-row"><span class="legend-swatch-line legend-line-path"></span> Pedestrian path</div>
-      <div class="legend-row"><span class="legend-swatch-line legend-line-rail"></span> Railway</div>
-      <div class="legend-row"><span class="legend-dot legend-dot-crossing"></span> Crossing</div>
-      <div class="legend-row"><span class="legend-dot legend-dot-facility"></span> Facility / point feature</div>
+    <!-- legend (bottom-right) -->
+    <div class="legend">
+      <div class="leg-title">Legend</div>
+      <div class="leg-row"><span class="leg-line leg-boundary"></span>Province boundary</div>
+      <div class="leg-row"><span class="leg-line leg-road"></span>Road network</div>
+      <div class="leg-row"><span class="leg-line leg-path"></span>Pedestrian path</div>
+      <div class="leg-row"><span class="leg-dot" style="background:#3B4248"></span>Railway</div>
+      <div class="leg-row"><span class="leg-dot" style="background:#1C8585"></span>Crossing</div>
+      <div class="leg-row"><span class="leg-dot sev-low"></span>Report – Low</div>
+      <div class="leg-row"><span class="leg-dot sev-med"></span>Report – Medium</div>
+      <div class="leg-row"><span class="leg-dot sev-high"></span>Report – High</div>
     </div>
 
-    <!-- left panel reopen tab (shown when collapsed) -->
+    <!-- reopen tab -->
     <button class="reopen-tab" id="reopenLeft" hidden>Layers ›</button>
   </main>
 
+  <!-- ── RIGHT PANEL: Dashboard ── -->
+  <aside class="panel panel-right" id="dashPanel" hidden>
+    <div class="panel-hd">
+      <span class="panel-hd-title">Dashboard</span>
+      <button class="panel-toggle" id="closeDash" title="Close">×</button>
+    </div>
+    <div class="panel-bd">
+
+      <div class="dash-stats" id="dashStats">
+        <div class="ds-card"><span class="ds-num" id="dTotal">0</span><span class="ds-lbl">Total reports</span></div>
+        <div class="ds-card ds-high"><span class="ds-num" id="dHigh">0</span><span class="ds-lbl">High severity</span></div>
+        <div class="ds-card"><span class="ds-num" id="dMonth">0</span><span class="ds-lbl">This month</span></div>
+      </div>
+
+      <div class="dash-section">
+        <div class="ds-title">By issue type</div>
+        <div id="chartType" class="bar-chart"></div>
+      </div>
+
+      <div class="dash-section">
+        <div class="ds-title">By severity</div>
+        <div id="chartSev" class="bar-chart"></div>
+      </div>
+
+      <div class="dash-section">
+        <div class="ds-title">Recent submissions</div>
+        <div id="recentList" class="recent-list"></div>
+      </div>
+
+      <div class="dash-refresh">
+        <button id="refreshBtn" class="btn btn-ghost btn-sm">↻ Refresh data</button>
+        <span class="dash-refresh-note">Data from Google Sheets (live)</span>
+      </div>
+
+    </div>
+  </aside>
+
 </div>
 
-<!-- ===================== LEAFLET ===================== -->
+<!-- ═══════════════════════════════════ REPORT MODAL ══ -->
+<div class="modal-backdrop" id="reportModal" hidden>
+  <div class="modal">
+    <div class="modal-hd">
+      <h2>Report a pedestrian safety issue</h2>
+      <button class="modal-x" id="closeModal">×</button>
+    </div>
+    <div class="modal-bd">
+
+      <!-- Step 1: Location -->
+      <div class="step" id="step1">
+        <div class="step-label">Step 1 of 3 — Pin the location</div>
+        <p class="step-hint">Click anywhere on the map behind this panel to drop a pin, or use your device's GPS.</p>
+        <button class="btn btn-outline" id="gpsBtn">
+          <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0 0 13 3.06V1h-2v2.06A8.994 8.994 0 0 0 3.06 11H1v2h2.06A8.994 8.994 0 0 0 11 20.94V23h2v-2.06A8.994 8.994 0 0 0 20.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
+          Use my current location
+        </button>
+        <div class="coord-box" id="coordBox">No location selected yet — click the map.</div>
+        <button class="btn btn-primary step-next" id="toStep2" disabled>Next: Describe the issue →</button>
+      </div>
+
+      <!-- Step 2: Form fields -->
+      <div class="step" id="step2" hidden>
+        <div class="step-label">Step 2 of 3 — Describe the issue</div>
+
+        <div class="frow">
+          <label>Issue type <span class="req">*</span></label>
+          <select id="fIssueType" required>
+            <option value="">Select…</option>
+            <option value="Broken Sidewalk">Broken sidewalk</option>
+            <option value="Unsafe Crossing">Unsafe crossing</option>
+            <option value="Poor Lighting">Poor street lighting</option>
+            <option value="Flooded Pathway">Flooded pathway</option>
+            <option value="Obstruction">Obstruction</option>
+            <option value="Accessibility Barrier">Accessibility barrier</option>
+          </select>
+        </div>
+
+        <div class="frow">
+          <label>Severity <span class="req">*</span></label>
+          <div class="sev-btns">
+            <button type="button" class="sev-btn sev-btn-low" data-sev="Low">Low</button>
+            <button type="button" class="sev-btn sev-btn-med active-sev" data-sev="Medium">Medium</button>
+            <button type="button" class="sev-btn sev-btn-high" data-sev="High">High</button>
+          </div>
+          <input type="hidden" id="fSeverity" value="Medium"/>
+        </div>
+
+        <div class="frow">
+          <label>Description <span class="req">*</span></label>
+          <textarea id="fDesc" rows="3" placeholder="What did you observe? Any safety risk to pedestrians?"></textarea>
+        </div>
+
+        <div class="frow">
+          <label>Your name <span class="opt">(optional)</span></label>
+          <input type="text" id="fName" placeholder="Anonymous if left blank"/>
+        </div>
+
+        <div class="step-actions">
+          <button class="btn btn-outline" id="toStep1">← Back</button>
+          <button class="btn btn-primary" id="toStep3">Next: Review & submit →</button>
+        </div>
+      </div>
+
+      <!-- Step 3: Review + submit -->
+      <div class="step" id="step3" hidden>
+        <div class="step-label">Step 3 of 3 — Review & submit</div>
+        <div class="review-box" id="reviewBox"></div>
+
+        <div class="submit-note">
+          Your report will be saved to Google Sheets and shown on this map for all users.
+          <br>The pin will appear on the map immediately after submission.
+        </div>
+
+        <div class="step-actions">
+          <button class="btn btn-outline" id="toStep2b">← Back</button>
+          <button class="btn btn-report" id="submitBtn">Submit report</button>
+        </div>
+
+        <div class="submit-success" id="submitSuccess" hidden>
+          ✅ Report submitted! It will appear on the map shortly.
+          <button class="btn btn-ghost btn-sm" id="submitAnother">Report another</button>
+          <button class="btn btn-ghost btn-sm" id="closeAfterSubmit">Close</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Hidden iframe for Google Form silent submit -->
+<iframe id="gformTarget" name="gformTarget" style="display:none" title="form-submit"></iframe>
+
+<!-- Leaflet -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="js/script.js"></script>
 </body>
