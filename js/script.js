@@ -37,13 +37,13 @@
 
    ════ ⚠️  ONLY 2 THINGS LEFT TO FILL IN — see steps 2 & 3 above ═════════ */
 
-const FORM_ID = '1FAIpQLSdgncnCOESnZJ2IJYGJAc-TssjJ8kB_oAfr15CEbLBS63tLDQ';  // ← from your form's action URL (already correct)
+const FORM_ID = 'https://docs.google.com/forms/u/0/d/e/1FAIpQLSdgncnCOESnZJ2IJYGJAc-TssjL8kB_oAfr15CEbLBS63tLDQ/formResponse';  // ← from your form's action URL (already correct)
 
 // Entry IDs. Only latitude/longitude are actually used now (to pre-fill the
 // embedded form) — the rest are kept here for reference / the CSV reader.
 const ENTRY = {
-  latitude:    'entry.ENTRY_LATITUDE',   // ← replace after adding the "Latitude" question
-  longitude:   'entry.ENTRY_LONGITUDE',  // ← replace after adding the "Longitude" question
+  latitude:    'entry.1288249379',   // ← replace after adding the "Latitude" question
+  longitude:   'entry.756715849',  // ← replace after adding the "Longitude" question
 };
 
 // Publish your Google Sheet as CSV and paste the URL here.
