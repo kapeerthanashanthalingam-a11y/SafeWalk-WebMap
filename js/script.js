@@ -7,42 +7,75 @@
    │  The web map builds a "prefilled" Google Form URL with the user's answers,
    │  then posts it silently to a hidden <iframe> (no page redirect). Google
    │  receives it exactly as if the user submitted the form normally, and saves
-   │  it to the linked Google Sheet.
+   │  it to the linked Google Sheet. The user never sees the actual Google Form —
+   │  the map's own 3-step modal *is* the form.
    │
    │  READING (Google Sheets → map popups + dashboard):
    │  The linked Sheet is published as a public CSV. The map fetches that CSV
-   │  on every load (and on manual refresh), parses each row, geocodes the
-   │  lat/lng from the "Location" column, and renders a colored pin on the map.
+   │  on every load (and on manual refresh/every 60s), parses each row, and
+   │  renders a colored pin for every response — visible to ALL users of the map.
    │
-   │  SETUP CHECKLIST (do this once — see README for screenshots):
-   │  1. In your Google Form editor → ⋮ menu → "Get pre-filled link"
-   │     Fill dummy answers → click "Get link" → paste the URL below and copy
-   │     each entry.XXXXXXXXX number into the ENTRY_IDS block.
-   │  2. In the linked Google Sheet → File → Share → Publish to web
-   │     → choose "Sheet1" (or your sheet name) → CSV → Publish
-   │     → copy the URL into SHEET_CSV_URL below.
+   │  ⚠️ TWO THINGS YOUR GOOGLE FORM IS MISSING RIGHT NOW ────────────────────
+   │  Your form (from the screenshot) has no field for coordinates, so the map
+   │  can't currently save *where* a pin was dropped. Add these two questions
+   │  to your Google Form, both "Short answer", both required:
+   │     • "Latitude"
+   │     • "Longitude"
+   │  (They can sit at the top or bottom of the form — order doesn't matter.
+   │  Users never see or fill these by hand; the map fills them silently.)
+   │
+   │  Also: your "Evidence (Upload a photo)" question is a *file upload* type.
+   │  Google does not allow file-upload questions to be submitted through the
+   │  prefill/iframe technique at all (no API for it without the user being
+   │  signed into Google in a real form session). So:
+   │     • In the Form editor, mark "Evidence" as NOT required, otherwise every
+   │       submission from the map will silently fail Google's validation.
+   │     • The map simply won't send a photo. If you need photos later, that
+   │       requires a small Google Apps Script "Web App" endpoint instead of
+   │       this prefill technique — ask if you want that built.
+   │
+   │  SETUP CHECKLIST (one-time):
+   │  1. Add the "Latitude" / "Longitude" questions above, and make "Evidence"
+   │     optional, in your Form editor.
+   │  2. Form editor → ⋮ menu → "Get pre-filled link" → fill dummy answers for
+   │     Latitude and Longitude → "Get link" → open it → look at the URL for
+   │     "&entry.XXXXXXXXX=" next to each — copy those two numbers below.
+   │  3. In the linked Google Sheet → File → Share → Publish to web
+   │     → select the response sheet → CSV → Publish → copy that URL below.
    │
    └──────────────────────────────────────────────────────────────────────────
 
-   ════ ⚠️  FILL THESE IN BEFORE THE MAP WILL WORK ════════════════════════ */
+   ════ ⚠️  ONLY 2 THINGS LEFT TO FILL IN — see steps 2 & 3 above ═════════ */
 
-const FORM_ID = '1vaI_n_PsaTVzYlfzbBh4mVnpD1UG5B_SPdKiAbKVHGQ';  // ← already correct
+const FORM_ID = '1FAIpQLSdgncnCOESnZJ2IJYGJAc-TssjJ8kB_oAfr15CEbLBS63tLDQ';  // ← from your form's action URL (already correct)
 
-// Paste entry IDs from your prefill URL here.
-// Example prefill URL entry looks like:  ...&entry.123456789=myAnswer
-// Replace each ENTRY_XXXXXXX with the real number from your form.
+// Entry IDs — the first four are read directly from your form's HTML
+// (see the screenshot you sent) and are already correct. Only replace
+// `latitude` and `longitude` once you've added those two questions (step 2 above).
 const ENTRY = {
-  latitude:   'entry.ENTRY_LATITUDE',    // ← replace with real ID e.g. entry.123456789
-  longitude:  'entry.ENTRY_LONGITUDE',   // ← replace with real ID
-  issueType:  'entry.ENTRY_ISSUE_TYPE',  // ← replace with real ID
-  severity:   'entry.ENTRY_SEVERITY',    // ← replace with real ID
-  description:'entry.ENTRY_DESCRIPTION', // ← replace with real ID
-  name:       'entry.ENTRY_NAME',        // ← replace (if you have a name field)
+  issueType:   'entry.1863083057',      // "Issue Type"              ✅ confirmed from your form
+  severity:    'entry.302271118',       // "Severity Level"          ✅ confirmed from your form
+  description: 'entry.507806241',       // "Description of the Problem" ✅ confirmed from your form
+  // "Date Observed" is a Google Forms Date question — it submits as THREE
+  // separate fields (year/month/day) instead of one. ✅ confirmed from your form
+  dateYear:    'entry.2123383240_year',
+  dateMonth:   'entry.2123383240_month',
+  dateDay:     'entry.2123383240_day',
+
+  latitude:    'entry.1288249379',   // ← replace after adding the "Latitude" question
+  longitude:   'entry.756715849',  // ← replace after adding the "Longitude" question
+
+  // Optional: only used if you add a "Reporter Name" short-answer question
+  // to your form. Leave as-is to submit anonymously (name is simply skipped).
+  name:        'entry.ENTRY_NAME',
 };
 
 // Publish your Google Sheet as CSV and paste the URL here.
 // (Sheet → File → Share → Publish to web → CSV → copy link)
-const SHEET_CSV_URL = 'YOUR_PUBLISHED_SHEET_CSV_URL_HERE'; // ← paste here
+const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQiSusu1m1Dz4_xHyQMzcbdQyo6UKYZGvRpbKASK2lR7pC3TE_fOnq40zNVdCA5V3VcSQSJYoFVsjDk/pubhtml'; // ← paste here
+
+// How often to auto-refresh public reports from the Sheet, in ms (0 = off)
+const AUTO_REFRESH_MS = 60000;
 
 /* ══════════════════════════════════════════════════════ */
 
@@ -62,12 +95,17 @@ const DATA = {
 
 const SEV_COLOR  = { Low:'#4C8C6B', Medium:'#E8A33D', High:'#D64545' };
 const ISSUE_LABELS = {
-  'Broken Sidewalk':    'Broken sidewalk',
-  'Unsafe Crossing':    'Unsafe crossing',
-  'Poor Lighting':      'Poor lighting',
-  'Flooded Pathway':    'Flooded pathway',
-  'Obstruction':        'Obstruction',
-  'Accessibility Barrier':'Accessibility barrier',
+  'Broken Sidewalk':            'Broken sidewalk',
+  'Unsafe Pedestrian Crossing': 'Unsafe pedestrian crossing',
+  'Poor Street Lighting':       'Poor street lighting',
+  'Flooded Walkway':            'Flooded walkway',
+  'Construction Obstruction':   'Construction obstruction',
+  'Illegal Parking on Walkway': 'Illegal parking on walkway',
+  'Open Drain':                 'Open drain',
+  'Accessibility Barrier':      'Accessibility barrier',
+  'Fallen Tree / Vegetation':   'Fallen tree / vegetation',
+  'Traffic Signal Problem':     'Traffic signal problem',
+  'Other':                      'Other',
 };
 
 /* ─── Map init ──────────────────────────────────────── */
@@ -247,10 +285,10 @@ function renderReports(rows){
     const lat  = parseFloat(row['Latitude']  || row['latitude']  || row['LAT'] || '');
     const lng  = parseFloat(row['Longitude'] || row['longitude'] || row['LNG'] || '');
     const type = row['Issue Type'] || row['Issue type'] || row['IssueType'] || '';
-    const sev  = row['Severity']   || row['severity']  || 'Medium';
-    const desc = row['Description']|| row['description']|| '';
-    const name = row['Name']       || row['Reporter']  || 'Anonymous';
-    const date = row['Timestamp']  || row['timestamp'] || '';
+    const sev  = row['Severity Level'] || row['Severity'] || row['severity'] || 'Medium';
+    const desc = row['Description of the Problem'] || row['Description'] || row['description'] || '';
+    const name = row['Reporter Name'] || row['Name'] || row['Reporter'] || 'Anonymous';
+    const date = row['Date Observed'] || row['Timestamp'] || row['timestamp'] || '';
 
     if(!isFinite(lat)||!isFinite(lng)) return; // skip rows with no valid coordinates
 
@@ -307,6 +345,7 @@ async function fetchReports(){
 }
 fetchReports();
 document.getElementById('refreshBtn').addEventListener('click', fetchReports);
+if(AUTO_REFRESH_MS>0) setInterval(fetchReports, AUTO_REFRESH_MS);
 
 /* ════════════════════════════════════════════════════════
    DASHBOARD
@@ -392,6 +431,7 @@ function openModal(){
   document.getElementById('fIssueType').value='';
   document.getElementById('fDesc').value='';
   document.getElementById('fName').value='';
+  document.getElementById('fDateObserved').value=new Date().toISOString().slice(0,10); // default: today
   setSev('Medium');
   if(pinMarker){map.removeLayer(pinMarker);pinMarker=null;}
   pendingLL=null;
@@ -460,7 +500,9 @@ document.querySelectorAll('.sev-btn').forEach(b=>b.addEventListener('click',()=>
 document.getElementById('toStep3').addEventListener('click',()=>{
   const type=document.getElementById('fIssueType').value;
   const desc=document.getElementById('fDesc').value.trim();
+  const dateObserved=document.getElementById('fDateObserved').value;
   if(!type){ alert('Please select an issue type.'); return; }
+  if(!dateObserved){ alert('Please select the date observed.'); return; }
   if(!desc){ alert('Please add a description.'); return; }
 
   const name=document.getElementById('fName').value.trim()||'Anonymous';
@@ -468,6 +510,7 @@ document.getElementById('toStep3').addEventListener('click',()=>{
     <div><b>Location</b>${pendingLL.lat.toFixed(5)}, ${pendingLL.lng.toFixed(5)}</div>
     <div><b>Issue type</b>${ISSUE_LABELS[type]||type}</div>
     <div><b>Severity</b>${currentSev}</div>
+    <div><b>Date observed</b>${dateObserved}</div>
     <div><b>Description</b>${desc}</div>
     <div><b>Name</b>${name}</div>
   `;
@@ -481,27 +524,36 @@ document.getElementById('submitBtn').addEventListener('click',()=>{
   const type = document.getElementById('fIssueType').value;
   const desc = document.getElementById('fDesc').value.trim();
   const name = document.getElementById('fName').value.trim()||'Anonymous';
+  const dateObserved = document.getElementById('fDateObserved').value; // "YYYY-MM-DD"
 
   if(ENTRY.latitude.includes('ENTRY_')){
     // Entry IDs not configured yet — show instructions
-    alert('⚠️ Google Form entry IDs not configured yet.\n\nOpen js/script.js and replace ENTRY_LATITUDE, ENTRY_LONGITUDE etc. with the real entry IDs from your Google Form prefill URL.\n\nSee README for exact steps.');
+    alert('⚠️ Latitude/Longitude entry IDs not configured yet.\n\n1. Add "Latitude" and "Longitude" short-answer questions to your Google Form.\n2. Use "Get pre-filled link" to find their entry.XXXXXXXXX IDs.\n3. Paste them into ENTRY.latitude / ENTRY.longitude in js/script.js.\n\nSee the comment block at the top of script.js for full steps.');
     return;
   }
 
-  // Build the prefill submit URL
-  const base=`https://docs.google.com/forms/d/${FORM_ID}/formResponse`;
-  const params=new URLSearchParams({
-    [ENTRY.latitude]:   pendingLL.lat.toFixed(6),
-    [ENTRY.longitude]:  pendingLL.lng.toFixed(6),
-    [ENTRY.issueType]:  type,
-    [ENTRY.severity]:   currentSev,
-    [ENTRY.description]:desc,
-    [ENTRY.name]:       name,
-    'submit':           'Submit',
-  });
+  // Split the date into the 3 sub-fields Google Forms' Date question expects
+  const [dY,dM,dD] = dateObserved.split('-');
+
+  // Build the params for the prefill submit URL
+  const paramObj = {
+    [ENTRY.latitude]:    pendingLL.lat.toFixed(6),
+    [ENTRY.longitude]:   pendingLL.lng.toFixed(6),
+    [ENTRY.issueType]:   type,
+    [ENTRY.severity]:    currentSev,
+    [ENTRY.description]: desc,
+    [ENTRY.dateYear]:    dY,
+    [ENTRY.dateMonth]:   dM,
+    [ENTRY.dateDay]:     dD,
+    'submit':            'Submit',
+  };
+  // Only send the name if a real "Reporter Name" entry ID has been configured
+  if(!ENTRY.name.includes('ENTRY_')) paramObj[ENTRY.name] = name;
+
+  const base = `https://docs.google.com/forms/d/${FORM_ID}/formResponse`;
+  const params = new URLSearchParams(paramObj);
 
   // POST silently via hidden iframe
-  const iframe=document.getElementById('gformTarget');
   const frm=document.createElement('form');
   frm.method='POST';
   frm.action=base;
@@ -525,12 +577,12 @@ document.getElementById('submitBtn').addEventListener('click',()=>{
     <div class="pu-title">${ISSUE_LABELS[type]||type}</div>
     ${pRow('Description',desc)}
     ${pRow('Reported by',name)}
-    ${pRow('Date','Just now')}
+    ${pRow('Date',dateObserved)}
   `);
   newMarker.addTo(LG.reports);
 
   // Update local allReports so dashboard reflects it immediately
-  allReports.push({lat:pendingLL.lat,lng:pendingLL.lng,type,sev:currentSev,desc,name,date:new Date().toISOString()});
+  allReports.push({lat:pendingLL.lat,lng:pendingLL.lng,type,sev:currentSev,desc,name,date:dateObserved});
   setCount('c-reports',allReports.length);
   updateDashboard();
 
