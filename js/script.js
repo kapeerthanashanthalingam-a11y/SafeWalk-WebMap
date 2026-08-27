@@ -48,7 +48,7 @@ const ENTRY = {
 
 // Publish your Google Sheet as CSV and paste the URL here.
 // (Sheet → File → Share → Publish to web → CSV → copy link)
-const SHEET_CSV_URL = 'YOUR_PUBLISHED_SHEET_CSV_URL_HERE'; // ← paste here
+const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQiSusu1m1Dz4_xHyQMzcbdQyo6UKYZGvRpbKASK2lR7pC3TE_fOnq40zNVdCA5V3VcSQSJYoFVsjDk/pubhtml'; // ← paste here
 
 // How often to auto-refresh public reports from the Sheet, in ms (0 = off)
 const AUTO_REFRESH_MS = 60000;
