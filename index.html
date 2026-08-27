@@ -165,87 +165,38 @@
 
       <!-- Step 1: Location -->
       <div class="step" id="step1">
-        <div class="step-label">Step 1 of 3 — Pin the location</div>
-        <p class="step-hint">Click anywhere on the map behind this panel to drop a pin, or use your device's GPS.</p>
+        <div class="step-label">Step 1 of 2 — Pin the location</div>
+        <p class="step-hint">Click anywhere on the map behind this panel to drop a pin at the issue's location — your current spot, or anywhere else you want to report.</p>
         <button class="btn btn-outline" id="gpsBtn">
           <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0 0 13 3.06V1h-2v2.06A8.994 8.994 0 0 0 3.06 11H1v2h2.06A8.994 8.994 0 0 0 11 20.94V23h2v-2.06A8.994 8.994 0 0 0 20.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
           Use my current location
         </button>
         <div class="coord-box" id="coordBox">No location selected yet — click the map.</div>
-        <button class="btn btn-primary step-next" id="toStep2" disabled>Next: Describe the issue →</button>
+        <button class="btn btn-primary step-next" id="toStep2" disabled>Next: Fill in the report →</button>
       </div>
 
-      <!-- Step 2: Form fields -->
+      <!-- Step 2: Real Google Form, embedded and pre-filled with the pinned location -->
       <div class="step" id="step2" hidden>
-        <div class="step-label">Step 2 of 3 — Describe the issue</div>
-
-        <div class="frow">
-          <label>Issue type <span class="req">*</span></label>
-          <select id="fIssueType" required>
-            <option value="">Select…</option>
-            <option value="Broken Sidewalk">Broken sidewalk</option>
-            <option value="Unsafe Crossing">Unsafe crossing</option>
-            <option value="Poor Lighting">Poor street lighting</option>
-            <option value="Flooded Pathway">Flooded pathway</option>
-            <option value="Obstruction">Obstruction</option>
-            <option value="Accessibility Barrier">Accessibility barrier</option>
-          </select>
+        <div class="step-label">Step 2 of 2 — Fill in the report</div>
+        <p class="step-hint">
+          Location <b id="chosenCoords"></b> is already attached. Fill in the rest below
+          and press <b>Submit</b> inside the form. Photo upload may ask you to sign in to
+          a Google account — that's a Google requirement for file uploads, not a bug.
+        </p>
+        <iframe id="gformFrame" class="gform-frame" src="" title="SafeWalk report form" loading="lazy"></iframe>
+        <div class="submit-note">
+          After you click Submit inside the form above, your pin appears on this map
+          within about a minute (or press "↻ Refresh data" in the Dashboard panel).
         </div>
-
-        <div class="frow">
-          <label>Severity <span class="req">*</span></label>
-          <div class="sev-btns">
-            <button type="button" class="sev-btn sev-btn-low" data-sev="Low">Low</button>
-            <button type="button" class="sev-btn sev-btn-med active-sev" data-sev="Medium">Medium</button>
-            <button type="button" class="sev-btn sev-btn-high" data-sev="High">High</button>
-          </div>
-          <input type="hidden" id="fSeverity" value="Medium"/>
-        </div>
-
-        <div class="frow">
-          <label>Description <span class="req">*</span></label>
-          <textarea id="fDesc" rows="3" placeholder="What did you observe? Any safety risk to pedestrians?"></textarea>
-        </div>
-
-        <div class="frow">
-          <label>Your name <span class="opt">(optional)</span></label>
-          <input type="text" id="fName" placeholder="Anonymous if left blank"/>
-        </div>
-
         <div class="step-actions">
           <button class="btn btn-outline" id="toStep1">← Back</button>
-          <button class="btn btn-primary" id="toStep3">Next: Review & submit →</button>
-        </div>
-      </div>
-
-      <!-- Step 3: Review + submit -->
-      <div class="step" id="step3" hidden>
-        <div class="step-label">Step 3 of 3 — Review & submit</div>
-        <div class="review-box" id="reviewBox"></div>
-
-        <div class="submit-note">
-          Your report will be saved to Google Sheets and shown on this map for all users.
-          <br>The pin will appear on the map immediately after submission.
-        </div>
-
-        <div class="step-actions">
-          <button class="btn btn-outline" id="toStep2b">← Back</button>
-          <button class="btn btn-report" id="submitBtn">Submit report</button>
-        </div>
-
-        <div class="submit-success" id="submitSuccess" hidden>
-          ✅ Report submitted! It will appear on the map shortly.
-          <button class="btn btn-ghost btn-sm" id="submitAnother">Report another</button>
-          <button class="btn btn-ghost btn-sm" id="closeAfterSubmit">Close</button>
+          <button class="btn btn-primary" id="closeAfterSubmit">Done / Close</button>
         </div>
       </div>
 
     </div>
   </div>
 </div>
-
-<!-- Hidden iframe for Google Form silent submit -->
-<iframe id="gformTarget" name="gformTarget" style="display:none" title="form-submit"></iframe>
 
 <!-- Leaflet -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
