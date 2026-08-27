@@ -271,7 +271,9 @@ input,select,textarea{font-family:inherit}
   background:var(--white);border-radius:var(--r-lg);
   width:100%;max-width:460px;max-height:90vh;
   display:flex;flex-direction:column;box-shadow:var(--sh-lg);
+  transition:max-width .15s ease;
 }
+.modal.modal-wide{max-width:640px}
 .modal-hd{
   display:flex;align-items:center;justify-content:space-between;
   padding:16px 20px;border-bottom:1px solid var(--line);flex-shrink:0;
@@ -304,7 +306,7 @@ input,select,textarea{font-family:inherit}
 .frow label{display:block;font-size:12px;font-weight:600;color:var(--ink-m);margin-bottom:5px}
 .req{color:var(--coral);margin-left:2px}
 .opt{font-weight:400;color:var(--slate)}
-.frow select,.frow input[type="text"],.frow textarea{
+.frow select,.frow input[type="text"],.frow input[type="date"],.frow textarea{
   width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:var(--r);
   font-size:13px;color:var(--ink);background:var(--white);
 }
@@ -327,6 +329,12 @@ input,select,textarea{font-family:inherit}
   font-size:12.5px;line-height:1.7;border:1px solid var(--line);
 }
 .review-box b{color:var(--ink);display:inline-block;min-width:90px}
+
+.gform-frame{
+  width:100%;height:520px;border:1px solid var(--line);border-radius:var(--r);
+  background:var(--white);margin-bottom:12px;
+}
+@media(max-width:600px){ .gform-frame{height:65vh} }
 
 .submit-note{font-size:11.5px;color:var(--slate);margin-bottom:14px;line-height:1.5}
 
